@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Web Component: &lt;msc-ai-shopping-assistant /> - a shopping assistant web component based on Chrome Built-in AI Prompt API</title>
+<meta name="description" content="msc-ai-shopping-assistant is a web component based on Chrome Built-in AI Prompt API. Users could use msc-ai-shopping-assistant to connect with Gemini Nano to gather rich and amazing purchase experience." />
+<script type="module" src="https://unpkg.com/msc-built-in-ai-prompt/mjs/wc-msc-built-in-ai-prompt.js"></script>
+<script type="module" src="mjs/wc-msc-ai-shopping-assistant.js"></script>
+<link rel="stylesheet" href="https://blog.lalacube.com/mei/css/wc-base.css">
+<link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/defaults.css">
+<link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/buttons.css">
+<link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/radio-set.css">
+
+<style>
+#hd,#ft{display:none;}
+body{position:relative;inline-size:100vw;block-size:100vh;margin:0;}
+
+.wrap {
+  inline-size: 100%;
+  max-inline-size: min(800px, calc(100% - 2em));
+  box-sizing: border-box;
+}
+
+.demo-wrap {
+  --accent-color: var(--dory);
+  --background-color: rgba(220 226 240);
+
+
+  @media (prefers-color-scheme: dark) {
+    --accent-color: 75 168 248;
+    --background-color: rgba(29 34 40);
+  }
+
+  position: relative;
+  inline-size: min(100%, 800px);
+  margin: 12em auto;
+  padding-inline: 1.5em;
+  box-sizing: border-box;
+
+  .button__wrap {
+    --btn-summon-display: none;
+    --warn-display: none;
+
+    &:has(msc-built-in-ai-prompt[data-status=available]) {
+      --btn-summon-display: block;
+    }
+
+    &:has(msc-built-in-ai-prompt[data-status=unsupported]) {
+      --warn-display: flex;
+    }
+
+    position: relative;
+    inline-size: 100%;
+    aspect-ratio: 16/9;
+    background-color: var(--background-color);
+
+    border-radius: 1em;
+    display: grid;
+    place-content: center;
+
+    .buttons[data-type='secondary1'] {
+      --default-text-color: rgba(var(--accent-color));
+    }
+
+    .buttons--summon {
+      display: var(--btn-summon-display);
+    }
+
+    .warn-unsupported {
+      color: rgba(var(--accent-color));
+      display: var(--warn-display);
+      align-items: center;
+      gap: .5em;
+
+      &::before {
+        content: '';
+        inline-size: 24px;
+        aspect-ratio: 1/1;
+        display: block;
+        background-color: rgba(var(--accent-color));
+        clip-path: path('M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z');
+      }
+    }
+  }
+}
+
+@keyframes l3 {
+  20%{background-position:0%   0%, 50%  50%,100%  50%}
+  40%{background-position:0% 100%, 50%   0%,100%  50%}
+  60%{background-position:0%  50%, 50% 100%,100%   0%}
+  80%{background-position:0%  50%, 50%  50%,100% 100%}
+}
+
+msc-built-in-ai-prompt {
+  --info-text: 'Try AI features';
+  --progress-text: '';
+  --loader-display: none;
+  --button-interactivity: auto;
+
+  &[data-status=downloading][data-progress] {
+    --info-text: 'LLM downloading';
+    --progress-text: attr(data-progress) '%';
+    --loader-display: block;
+    --button-interactivity: inert;
+  }
+
+  .buttons {
+    &[data-type='secondary1'] {
+      --default-text-color: rgba(var(--accent-color));
+    }
+
+    display: flex;
+    gap: .5em;
+    interactivity: var(--button-interactivity);
+
+    span::before {
+      content: var(--info-text);
+    }
+
+    .icon {
+      font-size: 0;
+      inline-size: 24px;
+      aspect-ratio: 1 / 1;
+      display: block;
+      background-color: rgba(var(--accent-color));
+      overflow: hidden;
+      clip-path: path('M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z');
+    }
+  }
+
+  .loader {
+    width: 20px;
+    aspect-ratio: 2;
+    --_g: no-repeat radial-gradient(circle closest-side, rgba(var(--accent-color)) 90%, rgba(var(--accent-color)/0));
+    background: 
+      var(--_g) 0%   50%,
+      var(--_g) 50%  50%,
+      var(--_g) 100% 50%;
+    background-size: calc(100%/3) 50%;
+    animation: l3 1s infinite linear;
+    display: var(--loader-display);
+  }
+
+  .loaded-info {
+    display: var(--loader-display);
+
+    &::before {
+      content: var(--progress-text);
+    }
+  }
+}
+
+msc-built-in-ai-prompt:not(:defined),
+msc-ai-shopping-assistant:not(:defined) {
+  display: none;
+}
+</style>
+</head>
+
+<body class="flex-center">
+<div class="wrap">
+  <div class="demo-wrap">
+    <div class="button__wrap">
+      <msc-built-in-ai-prompt>
+        <button
+          type="button"
+          class="buttons"
+          data-type="secondary1"
+          data-size="large"
+        >
+          <em class="icon">image</em>
+          <span></span>
+          <div class="loader"></div>
+          <em class="loaded-info"></em>
+        </button>
+      </msc-built-in-ai-prompt>
+      <p class="warn-unsupported">Current browser does't support Built-in AI.</p>
+    
+      <button
+        type="button"
+        class="buttons buttons--summon"
+        data-type="secondary1"
+        data-size="large"
+      >
+        Shopping Assisant
+      </button>
+    </div>
+
+    <form class="setting-form">
+      <ul class="adjustments">
+        <li class="adjustments__row">
+          <p class="adjustments__row__subject">Appearance：</p>
+          <div class="adjustments__row__content">
+            <div class="il-pair a11y-block-link">
+              <div class="radio-set">
+                <input id="appearance-0" type="radio" name="appearance" value="light" />
+                <label class="radio-set__label" for="appearance-0"></label>
+              </div>
+
+              <label for="appearance-0">
+                light
+              </label>
+            </div>
+
+            <div class="il-pair a11y-block-link">
+              <div class="radio-set">
+                <input id="appearance-1" type="radio" name="appearance" value="dark" />
+                <label class="radio-set__label" for="appearance-1"></label>
+              </div>
+
+              <label for="appearance-1">
+                dark
+              </label>
+            </div>
+
+            <div class="il-pair a11y-block-link">
+              <div class="radio-set">
+                <input id="appearance-2" type="radio" name="appearance" value="device" checked />
+                <label class="radio-set__label" for="appearance-2"></label>
+              </div>
+
+              <label for="appearance-2">
+                device
+              </label>
+            </div>
+          </div>
+        </li>
+        <li class="adjustments__row">
+          <p class="adjustments__row__subject">Recommend：</p>
+          <div class="adjustments__row__content">
+            <div class="il-pair a11y-block-link">
+              <div class="radio-set">
+                <input id="recommend-products-0" type="radio" name="recommend-products" value="yes" checked />
+                <label class="radio-set__label" for="recommend-products-0"></label>
+              </div>
+
+              <label for="recommend-products-0">
+                YES
+              </label>
+            </div>
+
+            <div class="il-pair a11y-block-link">
+              <div class="radio-set">
+                <input id="recommend-products-1" type="radio" name="recommend-products" value="no" />
+                <label class="radio-set__label" for="recommend-products-1"></label>
+              </div>
+
+              <label for="recommend-products-1">
+                NO
+              </label>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </form>
+  </div>
+</div>
+
+<msc-ai-shopping-assistant
+  recommendproducts
+  data-appearance="device"
+>
+</msc-ai-shopping-assistant>
+
+<script type="module">
+import he from 'https://blog.lalacube.com/mei/mjs/he.js';
+import { _wcl } from './mjs/common-lib.js';
+
+await customElements.whenDefined('msc-ai-shopping-assistant');
+
+const button = document.querySelector('.buttons--summon');
+const form = document.querySelector('.setting-form');
+const assistant = document.querySelector('msc-ai-shopping-assistant');
+const assistantClass = customElements.get('msc-ai-shopping-assistant');
+const { supportedEvents } = assistantClass;
+
+const getListings = async (keywords = []) => {
+  const apiUrl = 'https://tw.search.ec.yahoo.com/api/uther/v1';
+  const base = !/^http(s)?:\/\/.*/.test(apiUrl) ? window.location.origin : undefined;
+  const params = {
+    offset: 0,
+    hits: 5,
+    format: 'json',
+    property: 'auction',
+    searchChain: 'auction',
+    // advsearch: 1,
+    // p: keywords.join(' ')
+    // p: `(${keywords.join(' ')})`
+    p: keywords[0]
+  };
+
+  const fetchUrl = new URL(apiUrl, base);
+  Object.keys(params).forEach((key) => fetchUrl.searchParams.set(key, params[key]));
+    
+  const response = await fetch(
+    fetchUrl.toString(),
+    {
+      headers: {
+        'content-type': 'application/json'
+      },
+      method: 'GET',
+      mode: 'cors',
+    }
+  )
+    .then(
+      async (response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not OK.', {
+            cause: await response.json()
+          });
+        }
+
+        return response.json();
+      }
+    );
+
+  const {
+    result: {
+      ecsearch: {
+        hits = []
+      } = {}
+    } = {}
+  } = response;
+
+  const listings = hits.reduce(
+    (acc, listing) => {
+      const {
+        ec_title = '',
+        ec_item_url = '',
+        ec_price,
+        ec_listprice,
+        ec_img_uri = '',
+        ec_description = '',
+      } = listing;
+
+      const price = ec_price || ec_listprice;
+
+      return acc.concat({
+        url: ec_item_url,
+        title: he.decode(ec_title),
+        description: he.decode(ec_description),
+        thumbnail: ec_img_uri,
+        price: `NTD ${_wcl.numberFormat(+price)}`,
+        action: 'SHOP NOW'
+      });
+    }
+  , []);
+
+  return { listings };
+};
+
+const handler = async (evt) => {
+  const { type } = evt;
+
+  switch (type) {
+    case 'input': {
+      const formData = new FormData(form);
+      const fd = Object.fromEntries(formData.entries());
+
+      // appearance
+      assistant.dataset.appearance = fd['appearance'];
+
+      // recommendproducts
+      assistant.recommendproducts = fd['recommend-products'] === 'yes';
+      break;
+    }
+
+    case 'click': {
+      assistant.showModal();
+      break;
+    }
+
+    case 'msc-ai-shopping-assistant-purchase-intent': {
+      const { keywords } = evt.detail;
+      console.log(keywords);
+
+      const { listings = [] } = await getListings(keywords);
+
+      if (listings.length) {
+        assistant.productRecommend({
+          content: '為您準備了精心挑選的商品，歡迎參觀。',
+          listings
+        })
+      }
+      break;
+    }
+  }
+};
+
+// events
+form.addEventListener('input', handler);
+button.addEventListener('click', handler);
+supportedEvents.forEach(
+  (event) => {
+    assistant.addEventListener(event, handler);
+  }
+);
+</script>
+</body>
+
+</html>

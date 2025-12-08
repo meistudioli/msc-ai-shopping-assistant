@@ -1,0 +1,27 @@
+{
+  "name": "msc-ai-shopping-assistant",
+  "version": "1.0.0",
+  "description": "<msc-ai-shopping-assistant /> is a is a web component based on Chrome Built-in AI Prompt API. Users could use <msc-ai-shopping-assistant /> to connect with Gemini Nano to gather rich and amazing purchase experience.",
+  "keywords": [
+    "web",
+    "front-end",
+    "web component",
+    "built-in ai",
+    "gemini",
+    "shopping assistant"
+  ],
+  "homepage": "https://github.com/meistudioli/msc-ai-shopping-assistant#readme",
+  "bugs": {
+    "url": "https://github.com/meistudioli/msc-ai-shopping-assistant/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meistudioli/msc-ai-shopping-assistant.git"
+  },
+  "license": "MIT",
+  "author": "Paul Li",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
