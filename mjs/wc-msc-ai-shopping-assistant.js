@@ -31,8 +31,6 @@ const defaults = {
 
 格式與語言限制 (Format and Language Constraints):
 - 語言: 所有的回覆內容必須使用繁體中文。
-- 禁止重複: 絕對禁止重複或複述你上一次或先前已經向用戶提供的具體資訊、推薦內容或建議。如果用戶再次詢問相同內容，請直接假設用戶是想深化或確認，並提供更進一步的細節、不同的角度或新的行動建議。
-- 禁止回覆購物或產品諮詢意圖結果，請以禮貌、簡潔的方式迴避，並迅速將話題引導回購物、產品或你的專業領域。不需要提供認真或深入的回答。
 - 格式: 請勿提供連結或者在內容中需要進行填空的部分。所有的回覆內容必須嚴格使用 Markdown 格式進行排版（例如：使用標題、粗體、列表或代碼區塊，以提升可讀性）。
 `
       }
@@ -960,7 +958,9 @@ msc-dialogs:not(:defined) {
 </style>
 
 <div class="main" ontouchstart="" tabindex="0">
-  <msc-built-in-ai-prompt></msc-built-in-ai-prompt>
+  <msc-built-in-ai-prompt data-type="chat"></msc-built-in-ai-prompt>
+  <msc-built-in-ai-prompt data-type="pruchase-intent"></msc-built-in-ai-prompt>
+  
   <msc-snackbar duration="3" data-hide-action-button></msc-snackbar>
 
   <msc-dialogs id="shopping-assistant">
@@ -1040,22 +1040,48 @@ templateForSystemProductRecommend.innerHTML = `
 </div>
 `;
 
-const purchaseIntentConfig = {
-  prompt: `
-請依照方才對答內容準確判斷其是否具有明確的購物或產品諮詢意圖，並從中提取核心關鍵字，以便進行後續的商品推薦。
+const aiPISettings = {
+  config: {
+    initialPrompts: [
+      {
+        role: 'system',
+        content: `
+角色與目標 (Role & Goal):
+請你扮演一位專業且精明的電商導購助理。你的核心任務是接收用戶的提問，準確判斷其是否具有明確的購物或產品諮詢意圖，並從中提取所有核心關鍵字，以便為後續的商品推薦系統提供數據。
+
+行為規範與上下文重置 (Mandatory Rules & Context Reset):
+1. 專注當前輸入 (Focus): 在每次回答用戶問題之前，你必須將本次用戶的輸入視為一個全新的、獨立的請求。
+2. 嚴禁回顧 (No Self-Reference): 嚴禁引用、回顧、或重複你上一次的任何回覆內容或結論。你的每一個回覆都應是即時且獨立的。
 
 核心處理步驟 (Core Processing Steps):
 1. 意圖判斷 (Intent Recognition):
-  - 購物意圖判斷標準: 判斷用戶的問題是否圍繞著產品需求、購買諮詢、價格、款式、功能、用途、搭配、或解決特定問題（例如：「哪款手機拍照好？」「有沒有適合去海邊穿的裙子？」）。
+  - 標準: 判斷用戶的問題是否圍繞著產品需求、購買諮詢、價格、款式、功能、用途、搭配、或解決特定問題（例如：「哪款手機拍照好？」「有沒有適合去海邊穿的裙子？」）。
   - 分類: 輸出結果必須是以下兩種之一：[有購物意圖] 或 [無購物意圖]。
+
 2. 關鍵字提取 (Keyword Extraction):
   - 執行條件: 僅在判斷結果為 [有購物意圖] 時，才執行此步驟。
-  - 提取內容: 從用戶問句中，提取所有與商品推薦相關的核心要素，例如：商品類別、功能需求、預算範圍、使用情境、材質偏好 等。
+  - 提取內容: 提取所有與商品推薦相關的核心要素，並將其分類，例如：商品名稱、商品類別、功能需求、預算範圍、使用情境、品牌偏好、顏色/材質 等。如果某個分類未被提及，則使用空字串表示。
 
 輸出結構與限制 (Output Structure & Constraints):
+- 輸出格式: 最終輸出必須是單一的 JSON 格式物件。
 - 輸出語言: 必須使用繁體中文。
-- 格式: 最終輸出必須是單一的 JSON 格式物件，確保數據化和易於處理。
-`,
+- 提取內容限制: 如果未被提及或者不詳則以空字串表示。
+- 價格範圍格式化規則:
+  - 單一價格點 (Single Point Price):
+    - 使用 = 符號。
+    - 範例：=2000 (表示價格剛好是 2000 元)。
+  - 單向限定 (Single Boundary Limit):
+    - 使用 > (大於) 或 < (小於) 符號。
+    - 範例：>5000 (表示價格超過 5000 元)。
+    - 範例：<1500 (表示價格在 1500 元以下，含 1500 元)。
+  - 起訖範圍 (Range/Between):
+    - 使用 - 符號連接兩個數字，數字必須從小到大排列。
+    - 範例：1000-3000 (表示價格介於 1000 元到 3000 元之間，含兩端)。
+  - 無價格資訊: 如果用戶沒有提及價格，請一律輸出空字串。
+`
+      }
+    ]
+  },
   schema: {
     type: 'object',
     properties: {
@@ -1063,13 +1089,61 @@ const purchaseIntentConfig = {
         type: 'boolean',
         description: '有無購物意圖'
       },
-      keywords: {
-        type: 'array',
+      clues: {
+        type: 'object',
         description: '關鍵字抽取',
-        maxItems: 5
+        properties: {
+          name: {
+            type: 'string',
+            description: '商品名稱'
+          },
+          category: {
+            type: 'string',
+            description: '商品類別'
+          },
+          requires: {
+            type: 'string',
+            description: '功能需求'
+          },
+          price: {
+            type: 'string',
+            description: '預算範圍',
+            pattern: '^(?:[><=]\\d+|\\d+-\\d+)$'
+          },
+          quantity: {
+            type: 'number',
+            description: '欲購買數量'
+          },
+          scenario: {
+            type: 'string',
+            description: '使用情境/對象'
+          },
+          synonyms: {
+            type: 'array',
+            description: '商品的同義詞',
+            maxItems: 5
+          },
+          size: {
+            type: 'number',
+            description: '尺碼'
+          },
+          color: {
+            type: 'string',
+            description: '顏色'
+          },
+          brand: {
+            type: 'string',
+            description: '商品品牌'
+          },
+          used: {
+            type: 'boolean',
+            description: '是否為二手',
+          }
+        },
+        required: ['name', 'category', 'requires', 'price', 'quantity', 'scenario', 'synonyms', 'size', 'color', 'brand', 'used'],
       }
     },
-    required: ['intent', 'keywords'],
+    required: ['intent', 'clues'],
     additionalProperties: false
   }
 };
@@ -1111,6 +1185,7 @@ export class MscAiShoppingAssistant extends HTMLElement {
     this.#data = {
       controller: '',
       sessionCreated: false,
+      sessionPICreated: false,
       prompts: {},
       tid: ''
     };
@@ -1119,7 +1194,8 @@ export class MscAiShoppingAssistant extends HTMLElement {
     this.#nodes = {
       styleSheet: this.shadowRoot.querySelector('style'),
       dialog: this.shadowRoot.querySelector('msc-dialogs'),
-      ai: this.shadowRoot.querySelector('msc-built-in-ai-prompt'),
+      ai: this.shadowRoot.querySelector('msc-built-in-ai-prompt[data-type=chat]'),
+      aiPurchaseIntent: this.shadowRoot.querySelector('msc-built-in-ai-prompt[data-type=pruchase-intent]'),
       form: this.shadowRoot.querySelector('.shopping-assistant__ft__form'),
       textarea: this.shadowRoot.querySelector('.shopping-assistant__ft__form__ens__textarea'),
       btnSubmit: this.shadowRoot.querySelector('.shopping-assistant__ft__form__ens__button'),
@@ -1333,27 +1409,34 @@ export class MscAiShoppingAssistant extends HTMLElement {
     }
   }
 
-  async #purchaseIntentCheck() {
-    const { ai } = this.#nodes;
-    const { prompt, schema } = purchaseIntentConfig;
+  async #purchaseIntentCheck(content) {
+    const { aiPurchaseIntent } = this.#nodes;
+    const { config, schema } = aiPISettings;
 
     try {
-      let result = await ai.prompt(
-        prompt,
+      // make sure session created
+      if (!this.#data.sessionPICreated) {
+        this.#data.sessionPICreated = true;
+        await aiPurchaseIntent.create(config);
+      }
+
+      let result = await aiPurchaseIntent.prompt(
+        content,
         {
           responseConstraint: schema
         }
       );
 
-      const { intent = false, keywords = [] } = JSON.parse(result);
+      const { intent = false, clues = {} } = JSON.parse(result);
 
-      if (intent && keywords.length) {
+      if (intent) {
         this.#fireEvent(custumEvents.purchaseIntent, {
-          keywords
+          clues
         });
       }
     } catch(err) {
       console.warn(`${_wcl.classToTagName(this.constructor.name)}: ${err}`);
+      await aiPurchaseIntent.create(config);
     }
   }
 
@@ -1461,7 +1544,7 @@ export class MscAiShoppingAssistant extends HTMLElement {
       if (this.recommendproducts) {
         this.#data.tid = window.setTimeout(
           () => {
-            this.#purchaseIntentCheck();
+            this.#purchaseIntentCheck(content);
           }
         , 300);
       }

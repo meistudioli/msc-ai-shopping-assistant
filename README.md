@@ -183,8 +183,27 @@ Set recommendproducts for recommand products. AI will analysis user prompt for p
 ## Events
 | Event Signature | Description |
 | ----------- | ----------- |
-| msc-ai-shopping-assistant-purchase-intent | Fired when AI analysis user's prompt has purchase intent. Developers could gather `keywords` information from `event.detail`. |
+| msc-ai-shopping-assistant-purchase-intent | Fired when AI analysis user's prompt has purchase intent. Developers could gather `clues` information from `event.detail`. |
 
+※ event.detail:
+
+```json
+{
+  "clues": {
+    "name": "emmashop 樂福鞋",
+    "category": "樂福鞋",
+    "requires": "",
+    "price": "<1000",
+    "quantity": 1,
+    "scenario": "",
+    "synonyms": [],
+    "size": 38.5,
+    "color": "",
+    "brand": "emmashop",
+    "used": false
+  }
+}
+```
 
 ## Reference
 - [&lt;msc-ai-shopping-assistant /> demo](https://blog.lalacube.com/mei/webComponent_msc-ai-shopping-assistant.html)

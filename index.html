@@ -274,7 +274,59 @@ const assistant = document.querySelector('msc-ai-shopping-assistant');
 const assistantClass = customElements.get('msc-ai-shopping-assistant');
 const { supportedEvents } = assistantClass;
 
-const getListings = async (keywords = []) => {
+const getStoreId = async (brand) => {
+  const apiUrl = 'https://tw.search.ec.yahoo.com/api/uther/v3/auction/searchStore';
+  const base = !/^http(s)?:\/\/.*/.test(apiUrl) ? window.location.origin : undefined;
+  const params = {
+    q: brand,
+    spaceId: 'msc-ai-shopping-assistant'
+  };
+
+  const fetchUrl = new URL(apiUrl, base);
+  Object.keys(params).forEach((key) => fetchUrl.searchParams.set(key, params[key]));
+
+  const response = await fetch(
+    fetchUrl.toString(),
+    {
+      headers: {
+        'content-type': 'application/json'
+      },
+      method: 'GET',
+      mode: 'cors',
+    }
+  )
+    .then(
+      async (response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not OK.', {
+            cause: await response.json()
+          });
+        }
+
+        return response.json();
+      }
+    );
+
+  const { stores = [] } = response;
+
+  return stores?.[0]?.storeId ?? '';
+};
+
+const getListings = async (clues = {}) => {
+  const {
+    name = '',
+    category = '',
+    requires = '',
+    price = '',
+    quantity = 1,
+    scenario = '',
+    synonyms = [],
+    size = '',
+    color = '',
+    brand = '',
+    used = false
+  } = clues;
+
   const apiUrl = 'https://tw.search.ec.yahoo.com/api/uther/v1';
   const base = !/^http(s)?:\/\/.*/.test(apiUrl) ? window.location.origin : undefined;
   const params = {
@@ -283,11 +335,39 @@ const getListings = async (keywords = []) => {
     format: 'json',
     property: 'auction',
     searchChain: 'auction',
-    // advsearch: 1,
-    // p: keywords.join(' ')
-    // p: `(${keywords.join(' ')})`
-    p: keywords[0]
+    refine: used ? 'con_used' : 'con_new',
+    sort: 'popular',
+    p: name
   };
+
+  // storeId
+  if (brand) {
+    const sellerId = await getStoreId(brand);
+
+    if (sellerId) {
+      params.sellers = sellerId;
+    }
+  }
+
+  // price range
+  if (price) {
+    if (/^<\d+$/.test(price)) {
+      params.maxp = price.replace(/<|>|=/g, '');
+    }
+
+    if (/^>\d+$/.test(price)) {
+      params.minp = price.replace(/<|>|=/g, '');
+    }
+
+    if (/^=\d+$/.test(price)) {
+      params.minp = price.replace(/<|>|=/g, '');
+    }
+
+    if (/^(\d+)-(\d+)$/.test(price)) {
+      params.minp = price.replace(/^(\d+)-(\d+)$/, '$1');
+      params.maxp = price.replace(/^(\d+)-(\d+)$/, '$2');
+    }
+  }
 
   const fetchUrl = new URL(apiUrl, base);
   Object.keys(params).forEach((key) => fetchUrl.searchParams.set(key, params[key]));
@@ -371,10 +451,12 @@ const handler = async (evt) => {
     }
 
     case 'msc-ai-shopping-assistant-purchase-intent': {
-      const { keywords } = evt.detail;
-      console.log(keywords);
+      const { clues } = evt.detail;
 
-      const { listings = [] } = await getListings(keywords);
+      console.log('Here comes clues:');
+      console.log(clues);
+
+      const { listings = [] } = await getListings(clues);
 
       if (listings.length) {
         assistant.productRecommend({
