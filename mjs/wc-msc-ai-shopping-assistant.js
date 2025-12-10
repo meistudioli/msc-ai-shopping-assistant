@@ -613,7 +613,7 @@ msc-dialogs:not(:defined) {
       outline: 0 none;
     }
 
-    .shopping-assistant__ft__button {
+    .shopping-assistant__ft__form__button {
       --size: 32px;
       --gap: 8px;
 
@@ -715,6 +715,7 @@ msc-dialogs:not(:defined) {
       }
 
       .shopping-assistant__ft__form__ens {
+        position: relative;
         inline-size: calc(100% - var(--margin-inline) * 2);
         margin: var(--margin-block) var(--margin-inline);
         box-sizing: border-box;
@@ -982,9 +983,8 @@ msc-dialogs:not(:defined) {
               class="shopping-assistant__ft__form__ens__button"
             ></button>
           </div>
+          <button type="button" class="shopping-assistant__ft__form__button" inert>roll to end</button>
         </form>
-
-        <button type="button" class="shopping-assistant__ft__button" inert>roll to end</button>
       </div>
     </div>
   </msc-dialogs>
@@ -1199,7 +1199,7 @@ export class MscAiShoppingAssistant extends HTMLElement {
       form: this.shadowRoot.querySelector('.shopping-assistant__ft__form'),
       textarea: this.shadowRoot.querySelector('.shopping-assistant__ft__form__ens__textarea'),
       btnSubmit: this.shadowRoot.querySelector('.shopping-assistant__ft__form__ens__button'),
-      btnRoll: this.shadowRoot.querySelector('.shopping-assistant__ft__button'),
+      btnRoll: this.shadowRoot.querySelector('.shopping-assistant__ft__form__button'),
       autoScroll: this.shadowRoot.querySelector('.shopping-assistant__main__autoscroll'),
       results: this.shadowRoot.querySelector('.shopping-assistant__main__autoscroll__results'),
       snackbar: this.shadowRoot.querySelector('msc-snackbar')
