@@ -151,7 +151,7 @@ Set recommendproducts for recommand products. AI will analysis user prompt for p
 | placeholder | String | Getter / Setter for user input field's placeholder. |
 | recommendproducts | Boolean | Getter / Setter for recommend products setting. |
 | open | Boolean | Getter for &lt;msc-ai-shopping-assistant />'s open status. |
-
+| utterance | Object | Getter for &lt;msc-ai-shopping-assistant />'s utterance. |
 
 ## Mathods
 | Mathod Signature | Description |
@@ -160,6 +160,7 @@ Set recommendproducts for recommand products. AI will analysis user prompt for p
 | close() | Show &lt;msc-ai-shopping-assistant />. |
 | reset() | Reset all. (clear AI session & prompt context) |
 | productRecommend(data = {}) | Pass products' information for &lt;msc-ai-shopping-assistant />. |
+| setVoiceAndRate({ voice, rate = 1 }) | Setting Web Speech > SpeechSynthesisUtterance voice & rate. (voice should be `SpeechSynthesisVoice`) |
 
 ※ productRecommend()'s parameter - `data` should be the following structure:
 

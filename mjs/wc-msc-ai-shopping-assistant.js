@@ -425,6 +425,13 @@ msc-dialogs:not(:defined) {
             }
 
             .shopping-assistant__main__autoscroll__results__unit__actions__button {
+              --scale-normal: 0;
+              --scale-active: .83;
+              --delay: calc(
+                sibling-index()
+                * 200ms
+              );
+
               inline-size: 32px;
               aspect-ratio: 1/1;
               border-radius: 32px;
@@ -432,10 +439,6 @@ msc-dialogs:not(:defined) {
               display: grid;
               place-content: center;
 
-              --delay: calc(
-                sibling-index()
-                * 200ms
-              );
               opacity: var(--actions-opacity);
               transition:
                 opacity .25s ease var(--delay),
@@ -458,7 +461,57 @@ msc-dialogs:not(:defined) {
                 aspect-ratio: 1/1;
                 background-color: var(--form-button-icon-color);
                 clip-path: var(--icon);
-                scale: .83;
+                scale: var(--scale-active);
+              }
+
+              /* reverse */
+              &[data-reverse] {
+                --scale: var(--scale-active);
+
+                position: relative;
+                display: block;
+
+                &::before,
+                &::after {
+                  content: '';
+
+                  position: absolute;
+                  inset: 0;
+                  margin: auto;
+
+                  inline-size: 24px;
+                  aspect-ratio: 1/1;
+                  background-color: var(--form-button-icon-color);
+                  scale: var(--scale);
+
+                  transition: scale .15s ease;
+                  will-change: scale;
+                }
+
+                &::before {
+                  --scale: var(--scale-active);
+                }
+
+                &::after {
+                  --scale: var(--scale-normal);
+
+                  clip-path: var(--icon-reverse);
+                }
+              }
+
+              &[data-reverse="1"] {
+                &::before {
+                  --scale: var(--scale-normal);
+                }
+
+                &::after {
+                  --scale: var(--scale-active);
+                }
+              }
+
+              &[data-type=speak] {
+                --icon: path('M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z');
+                --icon-reverse: path('M6 19h4V5H6v14zm8-14v14h4V5h-4z');
               }
 
               &[data-type=refresh] {
@@ -1007,6 +1060,7 @@ templateForSystem.innerHTML = `
   </div>
   <div class="shopping-assistant__main__autoscroll__results__unit__content" data-node="content"></div>
   <div class="shopping-assistant__main__autoscroll__results__unit__actions">
+    <button type="button" class="shopping-assistant__main__autoscroll__results__unit__actions__button" data-type="speak" data-reverse="0">speak</button>
     <button type="button" class="shopping-assistant__main__autoscroll__results__unit__actions__button" data-type="refresh">refresh</button>
     <button type="button" class="shopping-assistant__main__autoscroll__results__unit__actions__button" data-type="copy">copy</button>
   </div>
@@ -1169,6 +1223,8 @@ if (CSS?.registerProperty) {
   }
 }
 
+const synth = window.speechSynthesis;
+
 export class MscAiShoppingAssistant extends HTMLElement {
   #data;
   #nodes;
@@ -1184,15 +1240,22 @@ export class MscAiShoppingAssistant extends HTMLElement {
     // data
     this.#data = {
       controller: '',
+      controllerForUtterance: '',
       sessionCreated: false,
       sessionPICreated: false,
       prompts: {},
-      tid: ''
+      tid: '',
+      voiceAndRate: {
+        voice: '',
+        rate: 1
+      },
+      utterance: ''
     };
 
     // nodes
     this.#nodes = {
-      styleSheet: this.shadowRoot.querySelector('style'),
+      // styleSheet: this.shadowRoot.querySelector('style'),
+      activeBtnSpeak: '',
       dialog: this.shadowRoot.querySelector('msc-dialogs'),
       ai: this.shadowRoot.querySelector('msc-built-in-ai-prompt[data-type=chat]'),
       aiPurchaseIntent: this.shadowRoot.querySelector('msc-built-in-ai-prompt[data-type=pruchase-intent]'),
@@ -1217,11 +1280,13 @@ export class MscAiShoppingAssistant extends HTMLElement {
     this._onScroll = this._onScroll.bind(this);
     this._onActionsClick = this._onActionsClick.bind(this);
     this._onScrollToBottom = this._onScrollToBottom.bind(this);
+    this._utteranceHandler = this._utteranceHandler.bind(this);
+    this._onDialogsClose = this._onDialogsClose.bind(this);
   }
 
   async connectedCallback() {
     const { config, error } = await _wcl.getWCConfig(this);
-    const { form, textarea, autoScroll, results, btnRoll } = this.#nodes;
+    const { form, textarea, autoScroll, results, btnRoll, dialog } = this.#nodes;
 
     if (error) {
       console.warn(`${_wcl.classToTagName(this.constructor.name)}: ${error}`);
@@ -1244,6 +1309,8 @@ export class MscAiShoppingAssistant extends HTMLElement {
     autoScroll.addEventListener('scroll', this._onScroll, { signal, passive: true });
     btnRoll.addEventListener('click', this._onScrollToBottom, { signal });
     results.addEventListener('click', this._onActionsClick, { signal });
+    dialog.addEventListener('msc-dialogs-close', this._onDialogsClose, { signal });
+    window.addEventListener('beforeunload', this._utteranceHandler, { signal });
 
     // apply 「shift」+ 「Enter」for line break. (desktop only)
     const mql = window.matchMedia('(hover: hover)');
@@ -1384,6 +1451,15 @@ export class MscAiShoppingAssistant extends HTMLElement {
     return this.#nodes.dialog.open;
   }
 
+  get utterance() {
+    const { voice = {}, rate = 1 } = this.#data.voiceAndRate;
+
+    return {
+      voice,
+      rate
+    };
+  }
+
   #fireEvent(evtName, detail) {
     this.dispatchEvent(new CustomEvent(evtName,
       {
@@ -1452,6 +1528,29 @@ export class MscAiShoppingAssistant extends HTMLElement {
     );
   }
 
+  #setupUtterance(content) {
+    // destroy exist utterance
+    this.#data.controllerForUtterance?.abort?.();
+    this.#data.utterance = null;
+
+    const utterance = new window.SpeechSynthesisUtterance(content);
+    const { voice, rate } = this.#data.voiceAndRate;
+
+    utterance.voice = voice;
+    utterance.rate = rate;
+
+    // events
+    this.#data.controllerForUtterance = new AbortController();
+    const signal = this.#data.controllerForUtterance.signal;
+    ['start', 'end', 'resume', 'pause', 'error'].forEach(
+      (event) => {
+        utterance.addEventListener(event, this._utteranceHandler, { signal });
+      }
+    );
+
+    this.#data.utterance = utterance;
+  }
+
   async _onActionsClick(evt) {
     const button = evt.target.closest('button');
 
@@ -1464,6 +1563,49 @@ export class MscAiShoppingAssistant extends HTMLElement {
     const id = unit.id;
 
     switch (type) {
+      case 'speak': {
+        const { voice } = this.#data.voiceAndRate;
+
+        if (!voice) {
+          this.#nodes.snackbar.show('Need to set voice first.');
+          return;
+        }
+
+        const content = unit.querySelector('[data-node=content]').textContent;
+        const { activeBtnSpeak } = this.#nodes;
+
+        if (!activeBtnSpeak) {
+          this.#nodes.activeBtnSpeak = button;
+          this.#setupUtterance(content);
+
+          this.#nodes.activeBtnSpeak.dataset.reverse = '1';
+
+          synth.cancel();
+          synth.speak(this.#data.utterance);
+        } else {
+          if (activeBtnSpeak === button) {
+            if (activeBtnSpeak.dataset.reverse === '1') {
+              activeBtnSpeak.dataset.reverse = '0';
+              synth.pause();
+            } else {
+              activeBtnSpeak.dataset.reverse = '1';
+              synth.resume();
+            }
+          } else {
+            synth.cancel();
+            activeBtnSpeak.dataset.reverse = '0';
+
+            this.#nodes.activeBtnSpeak = button;
+            this.#setupUtterance(content);
+
+            this.#nodes.activeBtnSpeak.dataset.reverse = '1';
+
+            synth.speak(this.#data.utterance);
+          }
+        }
+        break;
+      }
+
       case 'refresh': {
         if (this.#data.prompts[id]) {
           this.#nodes.textarea.value = this.#data.prompts[id];
@@ -1493,6 +1635,45 @@ export class MscAiShoppingAssistant extends HTMLElement {
       top: 0,
       behavior: 'smooth'
     });
+  }
+
+  _onDialogsClose() {
+    synth.cancel();
+  }
+
+  _utteranceHandler(evt) {
+    const { type } = evt;
+
+    switch (type) {
+      case 'resume':
+      case 'start': {
+        if (this.#nodes.activeBtnSpeak) {
+          this.#nodes.activeBtnSpeak.dataset.reverse = '1';
+        }
+        break;
+      }
+
+      case 'pause': {
+        if (this.#nodes.activeBtnSpeak) {
+          this.#nodes.activeBtnSpeak.dataset.reverse = '0';
+        }
+        break;
+      }
+
+      case 'error':
+      case 'end': {
+        if (this.#nodes.activeBtnSpeak) {
+          this.#nodes.activeBtnSpeak.dataset.reverse = '0';
+          this.#nodes.activeBtnSpeak = '';
+        }
+        break;
+      }
+
+      case 'beforeunload': {
+        synth.cancel();
+        break;
+      }
+    }
   }
 
   async _onSubmit(evt) {
@@ -1596,6 +1777,16 @@ export class MscAiShoppingAssistant extends HTMLElement {
     } catch(err) {
       console.warn(`${_wcl.classToTagName(this.constructor.name)}: ${err}`);
     }
+  }
+
+  setVoiceAndRate({ voice, rate = 1 }) {
+    synth.cancel();
+
+    this.#data.voiceAndRate = {
+      ...this.#data.voiceAndRate,
+      voice,
+      rate
+    };
   }
 
   close() {

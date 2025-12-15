@@ -1,6 +1,6 @@
 {
   "name": "msc-ai-shopping-assistant",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "<msc-ai-shopping-assistant /> is a is a web component based on Chrome Built-in AI Prompt API. Users could use <msc-ai-shopping-assistant /> to connect with Gemini Nano to gather rich and amazing purchase experience.",
   "keywords": [
     "web",

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/defaults.css">
 <link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/buttons.css">
 <link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/radio-set.css">
+<link rel="stylesheet" href="https://blog.lalacube.com/mei/css/layers/input-set.css">
 
 <style>
 #hd,#ft{display:none;}
@@ -80,6 +81,23 @@ body{position:relative;inline-size:100vw;block-size:100vh;margin:0;}
         background-color: rgba(var(--accent-color));
         clip-path: path('M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z');
       }
+    }
+  }
+
+  .input-set:has(select) {
+    select {
+      field-sizing: content;
+      inline-size: auto;
+    }
+  }
+
+  .adjustments__row:has(input[type=range]) {
+    align-items: center;
+
+    input[type=range] {
+      accent-color: rgba(var(--accent-color));
+      inline-size: 100%;
+      margin-block: .5em;
     }
   }
 }
@@ -225,6 +243,7 @@ msc-ai-shopping-assistant:not(:defined) {
             </div>
           </div>
         </li>
+
         <li class="adjustments__row">
           <p class="adjustments__row__subject">Recommend：</p>
           <div class="adjustments__row__content">
@@ -251,6 +270,25 @@ msc-ai-shopping-assistant:not(:defined) {
             </div>
           </div>
         </li>
+
+        <li class="adjustments__row">
+          <p class="adjustments__row__subject">Voice：</p>
+          <div class="adjustments__row__content">
+            <div class="input-set input-set--hide-label">
+              <select name="voice">
+                <option value="-1" disabled>Select Voice</option>
+                <hr />
+              </select>
+            </div>
+          </div>
+        </li>
+
+        <li class="adjustments__row">
+          <p class="adjustments__row__subject">Rate：</p>
+          <div class="adjustments__row__content">
+            <input type="range" name="rate" min=".5" max="1.5" step=".1" value="1.2" />
+          </div>
+        </li>
       </ul>
     </form>
   </div>
@@ -264,15 +302,71 @@ msc-ai-shopping-assistant:not(:defined) {
 
 <script type="module">
 import he from 'https://blog.lalacube.com/mei/mjs/he.js';
+import Mustache from './mjs/mustache.js';
 import { _wcl } from './mjs/common-lib.js';
 
 await customElements.whenDefined('msc-ai-shopping-assistant');
 
+const synth = window.speechSynthesis;
 const button = document.querySelector('.buttons--summon');
 const form = document.querySelector('.setting-form');
 const assistant = document.querySelector('msc-ai-shopping-assistant');
 const assistantClass = customElements.get('msc-ai-shopping-assistant');
 const { supportedEvents } = assistantClass;
+let supportVoices = [];
+
+const template = document.createElement('template');
+template.innerHTML = `
+  <option value="-1" disabled="">Select Voice</option>
+  <hr />
+  {{#options}}
+    <option value="{{value}}">{{content}}</option>
+  {{/options}}
+`;
+
+const setupSelectVoice = () => {
+  const select = form.querySelector('select');
+
+  select.replaceChildren();
+  const options = supportVoices.map(
+    (voice, idx) => {
+      return {
+        value: idx,
+        content: voice.name
+      };
+    }
+  );
+
+  const optionsString = Mustache.render(template.innerHTML, { options });
+  select.insertAdjacentHTML('beforeend', optionsString);
+
+  const found = supportVoices.findIndex(
+    (voice) => {
+      return /google|microsoft/i.test(voice.name);
+    }
+  );
+
+  if (found !== -1) {
+    select.value = found.toString();
+  }
+
+  handler({ type: 'input' });
+};
+
+const getAllSupportVoices = () => {
+  const voices = synth.getVoices();
+  const lang = 'zh-TW';
+
+  supportVoices = voices.reduce(
+    (acc, voice) => {
+      return (voice.lang === lang)
+        ? acc.concat(voice)
+        : acc;
+    }
+  , []);
+
+  setupSelectVoice();
+};
 
 const getStoreId = async (brand) => {
   const apiUrl = 'https://tw.search.ec.yahoo.com/api/uther/v3/auction/searchStore';
@@ -337,7 +431,7 @@ const getListings = async (clues = {}) => {
     searchChain: 'auction',
     refine: used ? 'con_used' : 'con_new',
     sort: 'popular',
-    p: name
+    p: name || category || brand || color
   };
 
   // storeId
@@ -350,7 +444,7 @@ const getListings = async (clues = {}) => {
   }
 
   // price range
-  if (price) {
+  if (price && !(['<0', '=0', '0-0'].includes(price))) {
     if (/^<\d+$/.test(price)) {
       params.maxp = price.replace(/<|>|=/g, '');
     }
@@ -366,6 +460,10 @@ const getListings = async (clues = {}) => {
     if (/^(\d+)-(\d+)$/.test(price)) {
       params.minp = price.replace(/^(\d+)-(\d+)$/, '$1');
       params.maxp = price.replace(/^(\d+)-(\d+)$/, '$2');
+
+      if (params.minp === params.maxp) {
+        delete(params.minp);
+      }
     }
   }
 
@@ -442,6 +540,13 @@ const handler = async (evt) => {
 
       // recommendproducts
       assistant.recommendproducts = fd['recommend-products'] === 'yes';
+      
+      // voice
+      const voice = supportVoices[+fd['voice']];
+      assistant.setVoiceAndRate({
+        voice,
+        rate: +fd['rate']
+      });
       break;
     }
 
@@ -470,6 +575,7 @@ const handler = async (evt) => {
 };
 
 // events
+synth.addEventListener('voiceschanged', getAllSupportVoices, { once:true });
 form.addEventListener('input', handler);
 button.addEventListener('click', handler);
 supportedEvents.forEach(
@@ -477,6 +583,8 @@ supportedEvents.forEach(
     assistant.addEventListener(event, handler);
   }
 );
+
+getAllSupportVoices();
 </script>
 </body>
 
